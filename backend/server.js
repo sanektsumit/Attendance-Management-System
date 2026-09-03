@@ -36,23 +36,35 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
-// CORS Configuration with strict origin validation
+// CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
-  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'];
+  : null;
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, same-origin, curl)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // If no custom whitelist is specified or wildcard is present, allow all origins
+      if (!allowedOrigins || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Automatically allow standard cloud deployment domains
       if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        allowedOrigins.includes('*') ||
-        process.env.NODE_ENV !== 'production'
+        origin.includes('.onrender.com') ||
+        origin.includes('.vercel.app') ||
+        origin.includes('.netlify.app') ||
+        origin.includes('localhost')
       ) {
         return callback(null, true);
       }
-      return callback(new Error('CORS policy does not allow access from this origin'), false);
+
+      return callback(null, false);
     },
     credentials: true,
   })
