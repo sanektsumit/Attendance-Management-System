@@ -29,17 +29,17 @@ const createTransporter = () => {
 
 const transporter = createTransporter();
 
-const getFromEmail = () => process.env.FROM_EMAIL || '"SANIT Attendance Portal" <no-reply@sanit.com>';
+const getFromEmail = () => process.env.FROM_EMAIL || '"SANEKT Attendance Portal" <no-reply@sanekt.com>';
 
 /**
  * 1. Send Welcome Email with Account Credentials on New Employee Creation
  */
 const sendWelcomeEmail = async (employee, password) => {
   try {
-    const subject = '🎉 Welcome to SANIT Attendance Portal - Your Account Credentials';
+    const subject = '🎉 Welcome to SANEKT Attendance Portal - Your Account Credentials';
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #334155;">
-        <h2 style="color: #6366f1; font-size: 22px; margin-bottom: 5px;">Welcome to SANIT Attendance Portal! 👋</h2>
+        <h2 style="color: #6366f1; font-size: 22px; margin-bottom: 5px;">Welcome to SANEKT Attendance Portal! 👋</h2>
         <p style="color: #94a3b8; font-size: 14px;">Your official employee account has been successfully created by HR Administration.</p>
         
         <div style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin: 20px 0;">
@@ -54,7 +54,7 @@ const sendWelcomeEmail = async (employee, password) => {
         <p style="color: #94a3b8; font-size: 13px;">You can now log into your employee dashboard to record attendance check-ins, view history, and manage your profile.</p>
         
         <div style="text-align: center; margin-top: 25px;">
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="background: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 10px; display: inline-block;">Log In to SANIT Portal</a>
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="background: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 10px; display: inline-block;">Log In to SANEKT Portal</a>
         </div>
       </div>
     `;
@@ -94,17 +94,17 @@ const sendPunchNotificationEmail = async ({
     });
     const formattedTime = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-    const subject = `[SANIT Alert] ${actionTitle} - ${formattedTime}`;
+    const subject = `[SANEKT Alert] ${actionTitle} - ${formattedTime}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #334155;">
         <div style="display: flex; align-items: center; justify-content: space-between; border-b: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px;">
           <h2 style="color: ${isLogin ? '#34d399' : '#fbbf24'}; font-size: 20px; margin: 0;">${actionTitle}</h2>
-          <span style="background: #1e293b; color: #94a3b8; font-size: 11px; padding: 4px 10px; border-radius: 20px;">SANIT Security</span>
+          <span style="background: #1e293b; color: #94a3b8; font-size: 11px; padding: 4px 10px; border-radius: 20px;">SANEKT Security</span>
         </div>
 
         <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 15px;">Hello <strong>${employee.name}</strong>,</p>
-        <p style="color: #94a3b8; font-size: 13px;">Your attendance activity was recorded on the SANIT Workforce Portal.</p>
+        <p style="color: #94a3b8; font-size: 13px;">Your attendance activity was recorded on the SANEKT Workforce Portal.</p>
 
         <div style="background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin: 20px 0;">
           <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #e2e8f0;">
@@ -141,7 +141,7 @@ const sendPunchNotificationEmail = async ({
           </table>
         </div>
 
-        <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 20px;">This is an automated security notification from SANIT Attendance System.</p>
+        <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 20px;">This is an automated security notification from SANEKT Attendance System.</p>
       </div>
     `;
 
@@ -161,7 +161,7 @@ const sendPunchNotificationEmail = async ({
  */
 const sendOTPEmail = async (email, otpCode) => {
   try {
-    const subject = '🔑 Your SANIT Security Verification OTP Code';
+    const subject = '🔑 Your SANEKT Security Verification OTP Code';
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #334155; text-align: center;">
         <h2 style="color: #818cf8; font-size: 20px;">Security OTP Verification</h2>

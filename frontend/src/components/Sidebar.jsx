@@ -62,6 +62,21 @@ const Sidebar = () => {
           })}
         </nav>
       </div>
+
+      {/* Brand Footer */}
+      <div className="pt-4 border-t border-slate-800/80 mt-6">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-800/70 bg-slate-950/60 p-2.5">
+          <img
+            src="/image.png"
+            alt="SANEKT Logo"
+            className="h-8 w-8 rounded-lg object-contain bg-slate-900 border border-slate-800/60 p-0.5"
+          />
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-bold text-white tracking-wide truncate">SANEKT</span>
+            <span className="text-[10px] font-medium text-slate-400 truncate">Attendance & HR OS</span>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 };

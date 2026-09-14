@@ -15,17 +15,19 @@ const Navbar = () => {
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-800/80 bg-slate-900/80 px-6 backdrop-blur-md">
       {/* Brand Logo */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 shadow-lg shadow-indigo-500/20">
-          <Clock className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <span className="text-lg font-bold tracking-tight text-white">SANIT</span>
+      <Link to="/" className="flex items-center gap-3 group">
+        <img
+          src="/image.png"
+          alt="SANEKT Logo"
+          className="h-9 w-9 rounded-xl object-contain shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform"
+        />
+        <div className="flex items-center">
+          <span className="text-lg font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors">SANEKT</span>
           <span className="ml-2 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-semibold text-indigo-400 border border-indigo-500/20">
             v1.0
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Right User Bar */}
       <div className="flex items-center gap-4">

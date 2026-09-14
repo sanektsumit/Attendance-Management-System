@@ -4,6 +4,7 @@ const {
   punchOut,
   getTodayStatus,
   getMyAttendance,
+  updateAttendancePhoto,
 } = require('../controllers/attendanceController');
 const { protect } = require('../middleware/auth');
 
@@ -13,6 +14,7 @@ router.use(protect);
 
 router.post('/punch-in', punchIn);
 router.put('/punch-out', punchOut);
+router.put('/update-photo', updateAttendancePhoto);
 router.get('/today', getTodayStatus);
 router.get('/my-history', getMyAttendance);
 

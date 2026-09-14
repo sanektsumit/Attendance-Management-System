@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../../api/axiosClient';
-import { FileSpreadsheet, Download, Filter, Calendar } from 'lucide-react';
+import { FileSpreadsheet, Download, Filter, Calendar, Camera, ShieldCheck, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const AttendanceReports = () => {
@@ -9,6 +9,7 @@ const AttendanceReports = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('ALL');
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   const fetchReports = async () => {
     try {
@@ -31,21 +32,35 @@ const AttendanceReports = () => {
     fetchReports();
   }, [status, startDate, endDate]);
 
-  const handleExportCSV = async () => {
-    try {
-      let url = `/admin/export-csv?status=${status}`;
-      if (startDate && endDate) url += `&startDate=${startDate}&endDate=${endDate}`;
-
-      const res = await axiosClient.get(url, { responseType: 'blob' });
-      const blob = new Blob([res.data], { type: 'text/csv' });
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = `attendance_report_${Date.now()}.csv`;
-      link.click();
-      toast.success('Attendance CSV report downloaded successfully');
-    } catch (error) {
-      toast.error('Failed to export CSV report');
+  const exportCSV = () => {
+    if (records.length === 0) {
+      toast.error('No records to export');
+      return;
     }
+
+    const headers = ['Employee Name', 'Department', 'Date', 'Status', 'Punch In', 'Punch Out', 'Total Hours', 'In Lat', 'In Lng', 'In Address'];
+    const rows = records.map((r) => [
+      r.user ? `"${r.user.name}"` : '"Unknown"',
+      r.user ? `"${r.user.department}"` : '"General"',
+      r.date,
+      r.status,
+      r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString() : '',
+      r.punchOutTime ? new Date(r.punchOutTime).toLocaleTimeString() : '',
+      r.totalHours || 0,
+      r.punchInLocation?.lat || '',
+      r.punchInLocation?.lng || '',
+      r.punchInLocation?.address ? `"${r.punchInLocation.address.replace(/"/g, '""')}"` : '',
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `SANEKT_attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Attendance report exported to CSV!');
   };
 
   return (
@@ -53,21 +68,20 @@ const AttendanceReports = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Attendance Reports</h1>
-          <p className="text-sm text-slate-400 mt-1">Multi-filter attendance records with downloadable CSV export</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Attendance Audit & Reports</h1>
+          <p className="text-sm text-slate-400 mt-1">Export attendance records with GPS location coordinates & photo verification</p>
         </div>
 
         <button
-          onClick={handleExportCSV}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 transition"
+          onClick={exportCSV}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 transition"
         >
-          <Download className="h-4 w-4" />
-          <span>Export CSV Report</span>
+          <Download className="h-4 w-4" /> Export CSV Report
         </button>
       </div>
 
-      {/* Filter Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      {/* Filter Toolbar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl">
         <div>
           <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Start Date</label>
           <input
@@ -114,6 +128,7 @@ const AttendanceReports = () => {
                 <th className="px-6 py-4">Department</th>
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Photo Proof</th>
                 <th className="px-6 py-4">Log In Time</th>
                 <th className="px-6 py-4">Log Out Time</th>
                 <th className="px-6 py-4">Total Hours</th>
@@ -123,13 +138,13 @@ const AttendanceReports = () => {
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-slate-500">
+                  <td colSpan="9" className="py-8 text-center text-slate-500">
                     Loading report data...
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-slate-500">
+                  <td colSpan="9" className="py-8 text-center text-slate-500">
                     No matching attendance records found.
                   </td>
                 </tr>
@@ -145,6 +160,39 @@ const AttendanceReports = () => {
                     <td className="px-6 py-4 font-mono text-slate-300">{r.date}</td>
                     <td className="px-6 py-4">
                       <span className="font-semibold text-xs text-indigo-400">{r.status}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {r.punchInPhoto && (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <img
+                              src={r.punchInPhoto}
+                              alt="Log In Photo"
+                              className="h-9 w-9 rounded-lg object-cover border border-emerald-500/40 shadow cursor-pointer hover:scale-110 transition"
+                              onClick={() => setPreviewPhoto(r.punchInPhoto)}
+                              title="Log In Photo"
+                            />
+                            <span className="text-[9px] text-emerald-400 font-bold">IN</span>
+                          </div>
+                        )}
+                        {r.punchOutPhoto && (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <img
+                              src={r.punchOutPhoto}
+                              alt="Log Out Photo"
+                              className="h-9 w-9 rounded-lg object-cover border border-amber-500/40 shadow cursor-pointer hover:scale-110 transition"
+                              onClick={() => setPreviewPhoto(r.punchOutPhoto)}
+                              title="Log Out Photo"
+                            />
+                            <span className="text-[9px] text-amber-400 font-bold">OUT</span>
+                          </div>
+                        )}
+                        {!r.punchInPhoto && !r.punchOutPhoto && (
+                          <span className="text-slate-600 text-xs flex items-center gap-1">
+                            <Camera className="h-3.5 w-3.5" /> None
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 font-mono">
                       {r.punchInTime ? new Date(r.punchInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
@@ -178,11 +226,7 @@ const AttendanceReports = () => {
                             {r.punchOutLocation?.address || 'Office Location'}
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-500 font-mono italic pt-1 border-t border-slate-800/40">
-                          Pending Log Out
-                        </div>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 ))
@@ -191,6 +235,34 @@ const AttendanceReports = () => {
           </table>
         </div>
       </div>
+
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Attendance Verification Photo Proof</h3>
+              </div>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 flex items-center justify-center">
+              <img
+                src={previewPhoto}
+                alt="Enlarged Attendance Photo"
+                className="w-full max-h-[70vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

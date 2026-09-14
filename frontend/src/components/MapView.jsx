@@ -18,20 +18,24 @@ const yellowIcon = new L.Icon({
   popupAnchor: [0, -38],
 });
 
-// Black Icon for Exact Current Live Location (SVG Data URI)
-const blackIcon = new L.Icon({
-  iconUrl: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="30" height="46"><path fill="%230F172A" stroke="%2364748B" stroke-width="1.5" d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12zm0 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>`,
-  iconSize: [30, 46],
-  iconAnchor: [15, 46],
-  popupAnchor: [0, -42],
+// High-Precision Cyan/Blue GPS Locator Pin for Exact Current Live Location
+const liveCurrentIcon = new L.Icon({
+  iconUrl: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="32" height="44"><circle cx="16" cy="16" r="14" fill="%230284c7" fill-opacity="0.3"/><circle cx="16" cy="16" r="8" fill="%230ea5e9" stroke="%23FFFFFF" stroke-width="2.5"/><path d="M16 24 L16 42" stroke="%230284c7" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="42" r="2.5" fill="%230284c7"/></svg>`,
+  iconSize: [32, 44],
+  iconAnchor: [16, 42],
+  popupAnchor: [0, -40],
 });
 
-// Helper component to smoothly pan/recenter map view when center prop updates
+// Helper component to smoothly pan/recenter map view and invalidate size
 const ChangeView = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
     if (center && center[0] && center[1]) {
       map.setView(center, zoom);
+      const timer = setTimeout(() => {
+        map.invalidateSize();
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [center, zoom, map]);
   return null;
@@ -54,7 +58,7 @@ const MapView = ({
     : center;
 
   return (
-    <div className="h-full w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-inner min-h-[350px]">
+    <div className="h-full w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-inner min-h-[280px]">
       <MapContainer center={mapCenter} zoom={zoom} scrollWheelZoom={true} className="h-full w-full">
         <ChangeView center={mapCenter} zoom={zoom} />
         
@@ -108,19 +112,26 @@ const MapView = ({
 
         {/* 3. Exact Current Live Location Marker */}
         {currentLoc?.lat && currentLoc?.lng && (
-          <Marker position={[currentLoc.lat, currentLoc.lng]} icon={blackIcon}>
-            <Popup>
-              <div className="text-xs space-y-1.5 p-1 min-w-[160px]">
-                <div className="font-bold text-slate-900 flex items-center gap-1">
-                  <span>⚫</span> Exact Live Position
+          <>
+            <Circle
+              center={[currentLoc.lat, currentLoc.lng]}
+              radius={40}
+              pathOptions={{ color: '#0284c7', fillColor: '#0ea5e9', fillOpacity: 0.2, weight: 1.5 }}
+            />
+            <Marker position={[currentLoc.lat, currentLoc.lng]} icon={liveCurrentIcon}>
+              <Popup>
+                <div className="text-xs space-y-1.5 p-1 min-w-[180px]">
+                  <div className="font-bold text-sky-700 flex items-center gap-1">
+                    <span>📍</span> Your Exact Current Location
+                  </div>
+                  <div className="text-slate-800 font-medium">Active Live GPS Tracking</div>
+                  <div className="text-[10px] text-slate-500 font-mono">
+                    GPS: {currentLoc.lat.toFixed(6)}, {currentLoc.lng.toFixed(6)}
+                  </div>
                 </div>
-                <div className="text-slate-700">Real-Time Active GPS</div>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  GPS: {currentLoc.lat.toFixed(4)}, {currentLoc.lng.toFixed(4)}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
+              </Popup>
+            </Marker>
+          </>
         )}
 
         {/* Bulk markers for Admin Map View (Day-wise Employee Logins) */}
