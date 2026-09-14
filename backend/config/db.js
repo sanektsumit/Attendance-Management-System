@@ -45,7 +45,13 @@ const connectDB = async () => {
     }
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      console.warn('⚠️ Server will stay alive in development mode. Please configure MONGO_URI in backend/.env or start MongoDB locally.');
+      console.warn('🔄 Retrying MongoDB connection in 10 seconds...');
+      setTimeout(connectDB, 10000);
+    }
   }
 };
 

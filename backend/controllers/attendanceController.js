@@ -36,7 +36,7 @@ const punchIn = async (req, res) => {
       });
     }
 
-    const { lat, lng } = req.body;
+    const { lat, lng, photo } = req.body;
     if (lat === undefined || lng === undefined || lat === null || lng === null || isNaN(Number(lat)) || isNaN(Number(lng))) {
       return res.status(400).json({
         success: false,
@@ -46,14 +46,6 @@ const punchIn = async (req, res) => {
 
     const office = await getActiveOfficeLocation();
     const fenceCheck = checkGeofenceCompliance(lat, lng, office.lat, office.lng, office.radius);
-
-    if (!fenceCheck.isWithinFence) {
-      return res.status(400).json({
-        success: false,
-        message: `Geofence Violation: ${fenceCheck.message}`,
-        details: { userCoords: { lat, lng }, officeCoords: { lat: office.lat, lng: office.lng }, radiusMeters: office.radius },
-      });
-    }
 
     const address = await reverseGeocode(lat, lng);
     const now = new Date();
@@ -68,8 +60,9 @@ const punchIn = async (req, res) => {
         lat: Number(lat),
         lng: Number(lng),
         address,
-        isWithinFence: true,
+        isWithinFence: fenceCheck.isWithinFence,
       },
+      punchInPhoto: photo || '',
       punchSource: 'WEB',
     });
 
@@ -120,7 +113,7 @@ const punchOut = async (req, res) => {
       });
     }
 
-    const { lat, lng } = req.body;
+    const { lat, lng, photo } = req.body;
     if (lat === undefined || lng === undefined || lat === null || lng === null || isNaN(Number(lat)) || isNaN(Number(lng))) {
       return res.status(400).json({
         success: false,
@@ -130,13 +123,6 @@ const punchOut = async (req, res) => {
 
     const office = await getActiveOfficeLocation();
     const fenceCheck = checkGeofenceCompliance(lat, lng, office.lat, office.lng, office.radius);
-
-    if (!fenceCheck.isWithinFence) {
-      return res.status(400).json({
-        success: false,
-        message: `Geofence Violation: ${fenceCheck.message}`,
-      });
-    }
 
     const address = await reverseGeocode(lat, lng);
     const now = new Date();
@@ -148,8 +134,11 @@ const punchOut = async (req, res) => {
       lat: Number(lat),
       lng: Number(lng),
       address,
-      isWithinFence: true,
+      isWithinFence: fenceCheck.isWithinFence,
     };
+    if (photo) {
+      attendance.punchOutPhoto = photo;
+    }
 
     if (totalHours < 4 && attendance.status !== 'LATE') {
       attendance.status = 'HALF_DAY';
@@ -233,9 +222,41 @@ const getMyAttendance = async (req, res) => {
   }
 };
 
+// @desc    Recapture / Update Attendance Photo after Logging In
+// @route   PUT /api/v1/attendance/update-photo
+// @access  Private
+const updateAttendancePhoto = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const todayStr = getTodayString();
+    const { photo } = req.body;
+
+    if (!photo) {
+      return res.status(400).json({ success: false, message: 'Photo data is required' });
+    }
+
+    const attendance = await Attendance.findOne({ user: userId, date: todayStr });
+    if (!attendance) {
+      return res.status(404).json({ success: false, message: 'No active attendance record found for today.' });
+    }
+
+    attendance.punchInPhoto = photo;
+    await attendance.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Attendance verification photo recaptured & updated successfully!',
+      attendance,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   punchIn,
   punchOut,
   getTodayStatus,
   getMyAttendance,
+  updateAttendancePhoto,
 };

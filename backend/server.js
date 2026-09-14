@@ -10,9 +10,12 @@ const rateLimit = require('express-rate-limit');
 
 dotenv.config();
 
+// Connect to Database
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const { initCronJobs } = require('./jobs/attendanceCron');
+
+const mongoose = require('mongoose');
 
 // Route Imports
 const authRoutes = require('./routes/authRoutes');
@@ -80,13 +83,28 @@ app.use('/api', limiter);
 
 // Health Check Endpoint
 app.get('/api/v1/health', (req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1;
   res.status(200).json({
     status: 'UP',
-    message: 'Attendance System API Server is Healthy & Operational',
+    database: isDbConnected ? 'connected' : 'disconnected',
+    message: isDbConnected
+      ? 'Attendance System API Server is Healthy & Operational'
+      : 'Attendance System API Server is Running. Note: Database is disconnected (configure MONGO_URI in backend/.env).',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: '1.0.0',
   });
+});
+
+// Middleware to guard database operations when disconnected
+app.use('/api/v1', (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database is not connected. Please start MongoDB or provide a valid MONGO_URI in backend/.env',
+    });
+  }
+  next();
 });
 
 // API Routes Mounting

@@ -37,7 +37,7 @@ const Login = () => {
 
   const fillCredentials = (type) => {
     setEmail('sanekt.sumit@gmail.com');
-    setPassword('sanekt.sumit@gmail.com');
+    setPassword('SanektAdmin@2026');
     toast.success('Filled Admin Credentials (sanekt.sumit@gmail.com)');
   };
 
@@ -50,10 +50,14 @@ const Login = () => {
       <div className="relative w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-emerald-500 shadow-lg shadow-indigo-500/25 mb-4">
-            <Clock className="h-7 w-7 text-white" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-950/80 border border-slate-800 p-2 shadow-xl shadow-indigo-500/25 mb-4 hover:scale-105 transition-transform">
+            <img
+              src="/image.png"
+              alt="SANEKT Logo"
+              className="h-full w-full object-contain rounded-xl"
+            />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">SANIT Attendance</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">SANEKT Attendance</h1>
           <p className="text-sm text-slate-400 mt-1">Sign in to your workplace portal</p>
         </div>
 

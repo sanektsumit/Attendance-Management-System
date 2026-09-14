@@ -167,7 +167,7 @@ const EmployeeDirectory = () => {
 
   const handleCopyCredentials = () => {
     if (!createdCredentials) return;
-    const text = `SANIT Employee Portal Access Credentials:\nName: ${createdCredentials.name}\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`;
+    const text = `SANEKT Employee Portal Access Credentials:\nName: ${createdCredentials.name}\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success('Login credentials copied to clipboard!');
@@ -572,13 +572,16 @@ const EmployeeDirectory = () => {
       {createdCredentials && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <CheckCircle2 className="h-6 w-6" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src="/image.png" alt="SANEKT Logo" className="h-10 w-10 rounded-xl object-contain bg-slate-950 p-1 border border-slate-800" />
+                <div>
+                  <h3 className="text-lg font-bold text-white">Employee Created!</h3>
+                  <p className="text-xs text-slate-400">Share these portal credentials with the employee</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Employee Created!</h3>
-                <p className="text-xs text-slate-400">Share these portal credentials with the employee</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
             </div>
 

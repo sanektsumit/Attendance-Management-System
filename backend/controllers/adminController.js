@@ -18,9 +18,46 @@ const getStats = async (req, res) => {
     const absent = Math.max(0, totalEmployees - (present + late + onLeave));
     const pendingLeavesCount = await Leave.countDocuments({ status: 'PENDING' });
 
+    // Compute dynamic past 7 days attendance trend from MongoDB
+    const past7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      past7Days.push({ dateStr, dayName });
+    }
+
+    const past7DateStrings = past7Days.map((d) => d.dateStr);
+    const weeklyRecords = await Attendance.find({ date: { $in: past7DateStrings } });
+
+    const weeklyTrend = past7Days.map(({ dateStr, dayName }) => {
+      const dayRecords = weeklyRecords.filter((r) => r.date === dateStr);
+      const dayPresent = dayRecords.filter((r) => r.status === 'PRESENT').length;
+      const dayLate = dayRecords.filter((r) => r.status === 'LATE').length;
+      const dayHalfDay = dayRecords.filter((r) => r.status === 'HALF_DAY').length;
+      const dayOnLeave = dayRecords.filter((r) => r.status === 'ON_LEAVE').length;
+      const dayTotalPunched = dayRecords.length;
+      const dayAbsent = Math.max(0, totalEmployees - (dayPresent + dayLate + dayHalfDay + dayOnLeave));
+
+      return {
+        day: dayName,
+        date: dateStr,
+        Present: dayPresent + dayHalfDay,
+        Late: dayLate,
+        Absent: dayAbsent,
+        OnLeave: dayOnLeave,
+        Total: dayTotalPunched,
+      };
+    });
+
     res.status(200).json({
       success: true,
       stats: { totalEmployees, present, late, absent, onLeave, pendingLeavesCount },
+      weeklyTrend,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

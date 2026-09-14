@@ -34,6 +34,14 @@ const attendanceSchema = new mongoose.Schema(
       type: locationSchema,
       default: () => ({}),
     },
+    punchInPhoto: {
+      type: String,
+      default: '',
+    },
+    punchOutPhoto: {
+      type: String,
+      default: '',
+    },
     totalHours: {
       type: Number,
       default: 0,
