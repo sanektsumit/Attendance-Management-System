@@ -128,56 +128,95 @@ const requestOTP = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide email address' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this email' });
+      return res.status(404).json({ success: false, message: 'No registered account found with this email' });
     }
 
-    // Generate random 6-digit OTP code
+    if (!user.isActive) {
+      return res.status(401).json({ success: false, message: 'Account is deactivated. Please contact HR.' });
+    }
+
+    // Generate random 6-digit numeric OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(email.toLowerCase(), { otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+    otpStore.set(cleanEmail, { otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+    console.log(`🔑 [SANEKT OTP SENT] Email: ${cleanEmail} | 6-Digit OTP: ${otpCode}`);
 
     // 📧 Send OTP email via Nodemailer
-    await sendOTPEmail(email, otpCode);
+    await sendOTPEmail(cleanEmail, otpCode);
 
     res.status(200).json({
       success: true,
-      message: `OTP verification code sent to ${email}`,
+      message: `A 6-digit OTP verification code has been sent to ${cleanEmail}`,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Verify OTP code
+// @desc    Verify OTP code and authenticate user into dashboard
 // @route   POST /api/v1/auth/verify-otp
 // @access  Public
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Please provide email and OTP code' });
+      return res.status(400).json({ success: false, message: 'Please provide email and 6-digit OTP code' });
     }
 
-    const record = otpStore.get(email.toLowerCase());
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = String(otp).trim();
+
+    const record = otpStore.get(cleanEmail);
     if (!record) {
-      return res.status(400).json({ success: false, message: 'No OTP requested for this email' });
+      return res.status(400).json({ success: false, message: 'No OTP requested for this email or it has expired. Please request a new code.' });
     }
 
     if (Date.now() > record.expiresAt) {
-      otpStore.delete(email.toLowerCase());
+      otpStore.delete(cleanEmail);
       return res.status(400).json({ success: false, message: 'OTP code has expired. Please request a new one.' });
     }
 
-    if (record.otpCode !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP verification code' });
+    if (record.otpCode !== cleanOtp) {
+      return res.status(400).json({ success: false, message: 'Invalid 6-digit OTP verification code' });
     }
 
-    otpStore.delete(email.toLowerCase());
+    // Clear OTP after successful use
+    otpStore.delete(cleanEmail);
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ success: false, message: 'Your account is deactivated. Please contact HR.' });
+    }
+
+    const token = generateToken(user._id, user.role);
 
     res.status(200).json({
       success: true,
-      message: 'OTP verified successfully!',
+      message: 'OTP verified successfully! Entering dashboard...',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        designation: user.designation,
+        shiftStart: user.shiftStart || '09:00',
+        shiftEnd: user.shiftEnd || '18:00',
+        lateThresholdMinutes: user.lateThresholdMinutes || 15,
+        avatar: user.avatar || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        bio: user.bio || '',
+        socialLinks: user.socialLinks || {},
+        documents: user.documents || [],
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -161,28 +161,36 @@ const sendPunchNotificationEmail = async ({
  */
 const sendOTPEmail = async (email, otpCode) => {
   try {
-    const subject = '🔑 Your SANEKT Security Verification OTP Code';
+    const subject = `🔑 Your SANEKT Login OTP: ${otpCode}`;
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #334155; text-align: center;">
-        <h2 style="color: #818cf8; font-size: 20px;">Security OTP Verification</h2>
-        <p style="color: #94a3b8; font-size: 13px;">Use the 6-digit OTP code below to verify your account or complete secure authentication.</p>
-        
-        <div style="background: #1e293b; padding: 18px; border-radius: 12px; margin: 25px 0; border: 1px border-indigo-500;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #34d399; font-family: monospace;">${otpCode}</span>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 36px 28px; border-radius: 20px; border: 1px solid #334155; text-align: center;">
+        <div style="margin-bottom: 24px;">
+          <h1 style="color: #6366f1; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px;">SANEKT</h1>
+          <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Workforce & Attendance Management Portal</p>
         </div>
 
-        <p style="color: #64748b; font-size: 12px;">This OTP code is valid for 10 minutes. Do not share this OTP with anyone.</p>
+        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 8px; font-weight: 700;">Login OTP Verification Code</h2>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Use the 6-digit one-time password below to securely log into your employee dashboard:</p>
+        
+        <div style="background: #1e293b; padding: 20px 30px; border-radius: 14px; margin: 24px auto; border: 2px dashed #6366f1; display: inline-block;">
+          <span style="font-size: 38px; font-weight: 900; letter-spacing: 12px; color: #10b981; font-family: 'Courier New', Courier, monospace; display: block;">${otpCode}</span>
+        </div>
+
+        <p style="color: #cbd5e1; font-size: 13px; margin-top: 16px;">⏱️ This verification code is valid for <strong>10 minutes</strong>.</p>
+        <p style="color: #64748b; font-size: 12px; margin-top: 8px;">If you did not request this login code, you can safely ignore this email.</p>
       </div>
     `;
 
-    await transporter.sendMail({
+    return await transporter.sendMail({
       from: getFromEmail(),
       to: email,
       subject,
       html: htmlContent,
+      text: `Your SANEKT Login OTP is: ${otpCode}. It expires in 10 minutes.`,
     });
   } catch (error) {
-    console.error('Failed to send OTP email:', error.message);
+    console.error('Failed to send OTP email via Nodemailer:', error.message);
+    throw error;
   }
 };
 
