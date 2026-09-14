@@ -19,8 +19,49 @@ import {
   Trash2,
   Sliders,
   Save,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+export const DESIGNATION_OPTIONS = [
+  'Software Engineer',
+  'Senior Software Engineer',
+  'Lead Software Engineer',
+  'Frontend Developer',
+  'Backend Developer',
+  'Full Stack Developer',
+  'Mobile App Developer',
+  'DevOps Engineer',
+  'QA / Test Engineer',
+  'UI/UX Designer',
+  'Product Manager',
+  'Project Manager',
+  'HR Executive',
+  'HR Manager',
+  'Talent Acquisition Specialist',
+  'Sales Executive',
+  'Business Development Executive',
+  'Marketing Specialist',
+  'Digital Marketing Manager',
+  'Operations Manager',
+  'Accountant',
+  'Finance Analyst',
+  'System Administrator',
+  'Staff Member',
+  'Intern',
+];
+
+export const DEPARTMENT_OPTIONS = [
+  'Engineering',
+  'Human Resources',
+  'Sales & Marketing',
+  'Operations',
+  'Finance',
+  'Design',
+  'Management',
+  'Support',
+];
 
 const EmployeeDirectory = () => {
   const [employees, setEmployees] = useState([]);
@@ -48,6 +89,7 @@ const EmployeeDirectory = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('Employee@123');
+  const [showAddPassword, setShowAddPassword] = useState(false);
   const [empDept, setEmpDept] = useState('Engineering');
   const [designation, setDesignation] = useState('Software Engineer');
   const [shiftStart, setShiftStart] = useState('21:00');
@@ -360,21 +402,33 @@ const EmployeeDirectory = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={editDept}
                     onChange={(e) => setEditDept(e.target.value)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
-                  />
+                  >
+                    {!DEPARTMENT_OPTIONS.includes(editDept) && editDept && (
+                      <option value={editDept}>{editDept}</option>
+                    )}
+                    {DEPARTMENT_OPTIONS.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Designation</label>
-                  <input
-                    type="text"
+                  <select
                     value={editDesignation}
                     onChange={(e) => setEditDesignation(e.target.value)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
-                  />
+                  >
+                    {!DESIGNATION_OPTIONS.includes(editDesignation) && editDesignation && (
+                      <option value={editDesignation}>{editDesignation}</option>
+                    )}
+                    {DESIGNATION_OPTIONS.map((desig) => (
+                      <option key={desig} value={desig}>{desig}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -497,34 +551,49 @@ const EmployeeDirectory = () => {
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <input
-                    type="text"
+                    type={showAddPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Set custom password (e.g. Employee@123)"
-                    className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 pl-9 text-sm text-white focus:border-indigo-500 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 pl-9 pr-10 text-sm text-white focus:border-indigo-500 focus:outline-none font-mono"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(!showAddPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition p-0.5 rounded-lg focus:outline-none"
+                    title={showAddPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showAddPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showAddPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Department</label>
-                  <input
-                    type="text"
+                  <select
                     value={empDept}
                     onChange={(e) => setEmpDept(e.target.value)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
-                  />
+                  >
+                    {DEPARTMENT_OPTIONS.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Designation</label>
-                  <input
-                    type="text"
+                  <select
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
-                  />
+                  >
+                    {DESIGNATION_OPTIONS.map((desig) => (
+                      <option key={desig} value={desig}>{desig}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
