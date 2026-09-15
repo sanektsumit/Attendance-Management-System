@@ -6,12 +6,14 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [selectedRange, setSelectedRange] = useState('7d');
   const [trendData, setTrendData] = useState([]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (range = selectedRange) => {
+    setTrendLoading(true);
     try {
-      const res = await axiosClient.get('/admin/stats');
+      const res = await axiosClient.get(`/admin/stats?range=${range}`);
       if (res.data.success) {
         setStats(res.data.stats);
         if (res.data.weeklyTrend && Array.isArray(res.data.weeklyTrend)) {
@@ -22,12 +24,22 @@ const AdminDashboard = () => {
       console.error('Failed to fetch admin stats:', error);
     } finally {
       setLoading(false);
+      setTrendLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    fetchStats(selectedRange);
+  }, [selectedRange]);
+
+  const getXAxisInterval = () => {
+    if (trendData.length <= 10) return 0;
+    if (trendData.length <= 15) return 1;
+    if (trendData.length <= 30) return 3;
+    if (trendData.length <= 90) return 9;
+    if (trendData.length <= 180) return 18;
+    return 36;
+  };
 
   return (
     <div className="space-y-6">
@@ -85,24 +97,50 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Attendance Chart */}
+      {/* Attendance Chart with Range Filter Dropdown */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
             <TrendingUp className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-base font-semibold text-white">Weekly Attendance Trends</h2>
+            <div>
+              <h2 className="text-base font-semibold text-white">
+                {selectedRange === '7d' ? 'Weekly Attendance Trends' : 'Attendance Trends'}
+              </h2>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block"></span> Present
-            </span>
-            <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 inline-block"></span> Late
-            </span>
-            <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose-500 inline-block"></span> Absent
-            </span>
-            <span className="text-slate-400 font-mono pl-2 border-l border-slate-800">Past 7 Days Live</span>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {/* Legend Pins */}
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block"></span> Present
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500 inline-block"></span> Late
+              </span>
+              <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-500 inline-block"></span> Absent
+              </span>
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950/90 px-3 py-1.5 text-slate-200 shadow-sm">
+              <Calendar className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <select
+                id="attendance-trends-range-select"
+                value={selectedRange}
+                onChange={(e) => setSelectedRange(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="7d" className="bg-slate-900 text-white">Last 7 Days</option>
+                <option value="10d" className="bg-slate-900 text-white">Last 10 Days</option>
+                <option value="15d" className="bg-slate-900 text-white">Last 15 Days</option>
+                <option value="1m" className="bg-slate-900 text-white">Last Month</option>
+                <option value="3m" className="bg-slate-900 text-white">Last 3 Months</option>
+                <option value="6m" className="bg-slate-900 text-white">Last 6 Months</option>
+                <option value="1y" className="bg-slate-900 text-white">Last 1 Year</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -119,24 +157,29 @@ const AdminDashboard = () => {
                     <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="colorAbsent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="day" stroke="#64748b" tickLine={false} />
+                <XAxis dataKey="day" stroke="#64748b" tickLine={false} interval={getXAxisInterval()} tick={{ fontSize: 11 }} />
                 <YAxis stroke="#64748b" allowDecimals={false} tickLine={false} domain={[0, 'auto']} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
                   labelFormatter={(label, payload) => {
                     const item = payload && payload[0] && payload[0].payload;
-                    return item ? `${label} (${item.date})` : label;
+                    return item ? `${item.date} (${item.day})` : label;
                   }}
                 />
                 <Area type="monotone" dataKey="Present" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorPresent)" />
                 <Area type="monotone" dataKey="Late" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorLate)" />
+                <Area type="monotone" dataKey="Absent" stroke="#f43f5e" strokeWidth={1.5} fillOpacity={1} fill="url(#colorAbsent)" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center text-xs text-slate-500">
-              Loading live weekly attendance data...
+              {trendLoading ? 'Loading attendance trend data...' : 'No attendance data available for the selected period.'}
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendWelcomeEmail, sendOTPEmail } = require('../utils/mailer');
 const { createNotification } = require('../utils/notificationService');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 // Memory cache for OTP verification codes
 const otpStore = new Map();
@@ -433,11 +434,45 @@ const impersonateEmployee = async (req, res) => {
   }
 };
 
+// @desc    Upload avatar image to Cloudinary and save to user profile
+// @route   POST /api/v1/auth/upload-avatar
+// @access  Private
+const uploadAvatar = async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'Please provide an image to upload' });
+    }
+
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Upload to Cloudinary under folder 'sanekt_avatars', throwing error if configuration or upload fails
+    const cloudinaryUrl = await uploadToCloudinary(image, 'sanekt_avatars', true);
+    user.avatar = cloudinaryUrl;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image uploaded successfully to Cloudinary!',
+      avatarUrl: cloudinaryUrl,
+      user,
+    });
+  } catch (error) {
+    console.error('Avatar upload error:', error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   login,
   registerEmployee,
   getMe,
   updateProfile,
+  uploadAvatar,
   addDocument,
   deleteDocument,
   impersonateEmployee,

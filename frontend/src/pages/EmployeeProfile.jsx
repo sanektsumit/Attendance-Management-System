@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosClient from '../api/axiosClient';
 import ConfirmModal from '../components/ConfirmModal';
@@ -20,6 +20,8 @@ import {
   Plus,
   Link as LinkIcon,
   ExternalLink,
+  Camera,
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -68,6 +70,66 @@ const EmployeeProfile = () => {
   const [docUrl, setDocUrl] = useState('');
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Cloudinary Avatar Upload State
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Sync profile form states when user updates
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setPhone(user.phone || '');
+      setAddress(user.address || '');
+      setBio(user.bio || '');
+      setDob(user.dob || '');
+      setEmergencyContact(user.emergencyContact || '');
+      setSocialLinks({
+        linkedin: user.socialLinks?.linkedin || '',
+        github: user.socialLinks?.github || '',
+        twitter: user.socialLinks?.twitter || '',
+        portfolio: user.socialLinks?.portfolio || '',
+      });
+      setDocuments(user.documents || []);
+    }
+  }, [user]);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (PNG, JPG, WEBP)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result;
+      setUploadingAvatar(true);
+      try {
+        const res = await axiosClient.post('/auth/upload-avatar', { image: base64Data });
+        if (res.data.success) {
+          toast.success('🎉 Profile photo saved to Cloudinary & MongoDB!');
+          if (res.data.user) {
+            setUser(res.data.user);
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to upload photo to Cloudinary');
+      } finally {
+        setUploadingAvatar(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -151,10 +213,48 @@ const EmployeeProfile = () => {
     <div className="space-y-8 max-w-5xl">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/70 p-6 shadow-2xl">
-        <div className="flex items-center gap-4">
-          {/* User Initial Icon */}
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-600/30 text-indigo-200 border-2 border-indigo-500/40 shadow-xl font-bold text-2xl">
-            <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
+        <div className="flex items-center gap-5">
+          {/* User Avatar with Cloudinary Upload Trigger */}
+          <div className="relative group">
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-indigo-600/30 text-indigo-200 border-2 border-indigo-500/40 shadow-xl overflow-hidden font-bold text-3xl">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name || 'Profile Avatar'}
+                  className="h-full w-full object-cover rounded-2xl"
+                />
+              ) : (
+                <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
+              )}
+
+              {/* Uploading Spinner Overlay */}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center gap-1 z-10">
+                  <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
+                  <span className="text-[10px] text-indigo-200 font-semibold">Uploading...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Hidden native file picker */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarChange}
+              accept="image/*"
+              className="hidden"
+            />
+
+            {/* Cloudinary Camera Upload Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              title="Upload profile photo to Cloudinary"
+              className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/40 border-2 border-slate-900 transition hover:scale-110 active:scale-95 disabled:opacity-50"
+            >
+              <Camera className="h-4 w-4" />
+            </button>
           </div>
 
           <div>

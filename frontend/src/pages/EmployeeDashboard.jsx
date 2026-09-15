@@ -1056,7 +1056,7 @@ const EmployeeDashboard = () => {
             <div className="text-[11px] text-center text-slate-500 border-t border-slate-800/80 pt-2 flex items-center justify-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               <span>
-                Photo & Live GPS ({userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)}) verified in MongoDB.
+                Photo & Live GPS ({userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)}) stored securely in Cloudinary & MongoDB.
               </span>
             </div>
 
