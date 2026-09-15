@@ -175,12 +175,10 @@ const requestOTP = async (req, res) => {
     otpStore.set(user.email, { otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
     console.log(`🔑 [SANEKT OTP SENT] Registered Employee Email: ${user.email} | 6-Digit OTP: ${otpCode}`);
 
-    // 📧 Send OTP email via Nodemailer to their actual mail id
-    try {
-      await sendOTPEmail(user.email, otpCode);
-    } catch (mailErr) {
+    // 📧 Send OTP email via Nodemailer in the background for instant UI response
+    sendOTPEmail(user.email, otpCode).catch((mailErr) => {
       console.error('Mail delivery warning:', mailErr.message);
-    }
+    });
 
     res.status(200).json({
       success: true,

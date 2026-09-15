@@ -2,8 +2,12 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
+let cachedTransporter = null;
+
 // Configure Transporter with Environment Variables or Fallback Mock Transport
 const createTransporter = () => {
+  if (cachedTransporter) return cachedTransporter;
+
   dotenv.config({ path: path.join(__dirname, '../.env') }); // Explicitly load backend/.env
   const user = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
   const rawPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').trim();
@@ -11,26 +15,19 @@ const createTransporter = () => {
   const pass = rawPass.replace(/\s+/g, '');
 
   if (user && pass) {
-    if (process.env.SMTP_HOST) {
-      return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 465,
-        secure: process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465,
-        auth: {
-          user,
-          pass,
-        },
-      });
-    }
-
-    // Default to Gmail service
-    return nodemailer.createTransport({
-      service: 'gmail',
+    cachedTransporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465,
       auth: {
         user,
         pass,
       },
     });
+    return cachedTransporter;
   }
 
   // Graceful fallback logger transport when SMTP env is not yet configured
