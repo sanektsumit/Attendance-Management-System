@@ -18,24 +18,50 @@ const getStats = async (req, res) => {
     const absent = Math.max(0, totalEmployees - (present + late + onLeave));
     const pendingLeavesCount = await Leave.countDocuments({ status: 'PENDING' });
 
-    // Compute dynamic past 7 days attendance trend from MongoDB
-    const past7Days = [];
-    for (let i = 6; i >= 0; i--) {
+    const { range = '7d' } = req.query;
+
+    // Determine days count based on filter range
+    let daysCount = 7;
+    if (range === '10d') daysCount = 10;
+    else if (range === '15d') daysCount = 15;
+    else if (range === '1m') daysCount = 30;
+    else if (range === '3m') daysCount = 90;
+    else if (range === '6m') daysCount = 180;
+    else if (range === '1y') daysCount = 365;
+
+    // Compute dynamic attendance trend dates from MongoDB
+    const trendDates = [];
+    for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-      past7Days.push({ dateStr, dayName });
+
+      let dayName;
+      if (daysCount <= 10) {
+        dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      } else {
+        dayName = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      trendDates.push({ dateStr, dayName });
     }
 
-    const past7DateStrings = past7Days.map((d) => d.dateStr);
-    const weeklyRecords = await Attendance.find({ date: { $in: past7DateStrings } });
+    const dateStrings = trendDates.map((d) => d.dateStr);
+    const rangeRecords = await Attendance.find({ date: { $in: dateStrings } });
 
-    const weeklyTrend = past7Days.map(({ dateStr, dayName }) => {
-      const dayRecords = weeklyRecords.filter((r) => r.date === dateStr);
+    // Group records by date for O(1) lookups
+    const recordsByDate = {};
+    for (const r of rangeRecords) {
+      if (!recordsByDate[r.date]) {
+        recordsByDate[r.date] = [];
+      }
+      recordsByDate[r.date].push(r);
+    }
+
+    const weeklyTrend = trendDates.map(({ dateStr, dayName }) => {
+      const dayRecords = recordsByDate[dateStr] || [];
       const dayPresent = dayRecords.filter((r) => r.status === 'PRESENT').length;
       const dayLate = dayRecords.filter((r) => r.status === 'LATE').length;
       const dayHalfDay = dayRecords.filter((r) => r.status === 'HALF_DAY').length;
@@ -58,6 +84,8 @@ const getStats = async (req, res) => {
       success: true,
       stats: { totalEmployees, present, late, absent, onLeave, pendingLeavesCount },
       weeklyTrend,
+      range,
+      daysCount,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

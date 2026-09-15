@@ -316,8 +316,12 @@ const EmployeeDirectory = () => {
                 employees.map((emp) => (
                   <tr key={emp._id} className="hover:bg-slate-800/40 transition">
                     <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-xs">
-                        {emp.name ? emp.name.charAt(0).toUpperCase() : 'E'}
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-xs overflow-hidden">
+                        {emp.avatar ? (
+                          <img src={emp.avatar} alt={emp.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{emp.name ? emp.name.charAt(0).toUpperCase() : 'E'}</span>
+                        )}
                       </div>
                       <div>
                         <div className="font-semibold text-white">{emp.name}</div>

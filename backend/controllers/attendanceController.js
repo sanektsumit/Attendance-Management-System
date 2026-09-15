@@ -7,6 +7,7 @@ const { reverseGeocode } = require('../utils/geocode');
 const { checkGeofenceCompliance } = require('../utils/geofence');
 const { sendPunchNotificationEmail } = require('../utils/mailer');
 const { createNotification } = require('../utils/notificationService');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 // Helper to resolve active office location for geofence check
 const getActiveOfficeLocation = async () => {
@@ -52,6 +53,12 @@ const punchIn = async (req, res) => {
     const now = new Date();
     const status = calculateLateStatus(now, req.user.shiftStart || '09:00', req.user.lateThresholdMinutes || 15);
 
+    // ☁️ Upload check-in photo to Cloudinary
+    let punchInPhotoUrl = '';
+    if (photo) {
+      punchInPhotoUrl = await uploadToCloudinary(photo, 'sanekt_attendance/punch_in');
+    }
+
     const attendance = await Attendance.create({
       user: userId,
       date: todayStr,
@@ -63,7 +70,7 @@ const punchIn = async (req, res) => {
         address,
         isWithinFence: fenceCheck.isWithinFence,
       },
-      punchInPhoto: photo || '',
+      punchInPhoto: punchInPhotoUrl,
       punchSource: 'WEB',
     });
 
@@ -164,7 +171,8 @@ const punchOut = async (req, res) => {
       isWithinFence: fenceCheck.isWithinFence,
     };
     if (photo) {
-      attendance.punchOutPhoto = photo;
+      const punchOutPhotoUrl = await uploadToCloudinary(photo, 'sanekt_attendance/punch_out');
+      attendance.punchOutPhoto = punchOutPhotoUrl;
     }
 
     if (totalHours < 4 && attendance.status !== 'LATE') {

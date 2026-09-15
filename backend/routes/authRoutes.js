@@ -4,6 +4,7 @@ const {
   registerEmployee,
   getMe,
   updateProfile,
+  uploadAvatar,
   addDocument,
   deleteDocument,
   impersonateEmployee,
@@ -21,6 +22,7 @@ router.post('/send-otp', requestOTP);
 router.post('/verify-otp', verifyOTP);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.post('/upload-avatar', protect, uploadAvatar);
 router.post('/documents', protect, addDocument);
 router.delete('/documents/:docId', protect, deleteDocument);
 

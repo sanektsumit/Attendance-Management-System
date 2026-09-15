@@ -56,8 +56,12 @@ const Navbar = () => {
           to="/profile"
           className="flex items-center gap-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 py-1.5 px-3 hover:border-slate-700 transition"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold text-xs">
-            <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold text-xs overflow-hidden">
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+            ) : (
+              <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
+            )}
           </div>
           <div className="hidden md:block text-left">
             <div className="text-sm font-semibold text-white leading-tight">{user?.name}</div>

@@ -36,8 +36,8 @@ app.use(
     contentSecurityPolicy: false, // Prevent issues with inline scripts/styles in production frontend
   })
 );
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
 
 // CORS Configuration
@@ -116,7 +116,18 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/office', officeRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 
-// Static file serving for Frontend (Single-server Deployment)
+// Root Route (Displays API Status when frontend is hosted separately on Vercel)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    name: 'SANEKT Attendance Management System API',
+    status: 'ONLINE',
+    healthCheck: '/api/v1/health',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Static file serving for Frontend (Single-server Deployment fallback)
 const frontendDistPath = path.join(__dirname, '../frontend/dist');
 if (fs.existsSync(frontendDistPath)) {
   app.use(express.static(frontendDistPath));
@@ -127,7 +138,7 @@ if (fs.existsSync(frontendDistPath)) {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 } else {
-  // 404 Handler for API
+  // 404 Handler for undefined API routes
   app.use('/api', (req, res) => {
     res.status(404).json({ success: false, message: 'API Route Not Found' });
   });
