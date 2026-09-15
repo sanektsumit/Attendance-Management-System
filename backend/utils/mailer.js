@@ -1,15 +1,34 @@
+const path = require('path');
 const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
 
 // Configure Transporter with Environment Variables or Fallback Mock Transport
 const createTransporter = () => {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+  dotenv.config({ path: path.join(__dirname, '../.env') }); // Explicitly load backend/.env
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+  const rawPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').trim();
+  // Strip any spaces from Google App Passwords (e.g. 'xslw hizm kvnh pqfu' -> 'xslwhizmkvnhpqfu')
+  const pass = rawPass.replace(/\s+/g, '');
+
+  if (user && pass) {
+    if (process.env.SMTP_HOST) {
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user,
+          pass,
+        },
+      });
+    }
+
+    // Default to Gmail service
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      service: 'gmail',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user,
+        pass,
       },
     });
   }
@@ -20,7 +39,7 @@ const createTransporter = () => {
       console.log('\n================ 📧 MOCK EMAIL NOTIFICATION SENT ================');
       console.log(`📩 TO:      ${mailOptions.to}`);
       console.log(`📌 SUBJECT: ${mailOptions.subject}`);
-      console.log('📄 BODY:\n', mailOptions.text || mailOptions.html.replace(/<[^>]*>?/gm, ''));
+      console.log('📄 BODY:\n', mailOptions.text || (mailOptions.html ? mailOptions.html.replace(/<[^>]*>?/gm, '') : ''));
       console.log('=================================================================\n');
       return { messageId: `mock_email_${Date.now()}` };
     },
@@ -161,28 +180,39 @@ const sendPunchNotificationEmail = async ({
  */
 const sendOTPEmail = async (email, otpCode) => {
   try {
-    const subject = '🔑 Your SANEKT Security Verification OTP Code';
+    const subject = `🔑 Your SANEKT Login OTP: ${otpCode}`;
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #334155; text-align: center;">
-        <h2 style="color: #818cf8; font-size: 20px;">Security OTP Verification</h2>
-        <p style="color: #94a3b8; font-size: 13px;">Use the 6-digit OTP code below to verify your account or complete secure authentication.</p>
-        
-        <div style="background: #1e293b; padding: 18px; border-radius: 12px; margin: 25px 0; border: 1px border-indigo-500;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #34d399; font-family: monospace;">${otpCode}</span>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 36px 28px; border-radius: 20px; border: 1px solid #334155; text-align: center;">
+        <div style="margin-bottom: 24px;">
+          <h1 style="color: #6366f1; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 1px;">SANEKT</h1>
+          <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Workforce & Attendance Management Portal</p>
         </div>
 
-        <p style="color: #64748b; font-size: 12px;">This OTP code is valid for 10 minutes. Do not share this OTP with anyone.</p>
+        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 8px; font-weight: 700;">Login OTP Verification Code</h2>
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">Use the 6-digit one-time password below to securely log into your employee dashboard:</p>
+        
+        <div style="background: #1e293b; padding: 20px 30px; border-radius: 14px; margin: 24px auto; border: 2px dashed #6366f1; display: inline-block;">
+          <span style="font-size: 38px; font-weight: 900; letter-spacing: 12px; color: #10b981; font-family: 'Courier New', Courier, monospace; display: block;">${otpCode}</span>
+        </div>
+
+        <p style="color: #cbd5e1; font-size: 13px; margin-top: 16px;">⏱️ This verification code is valid for <strong>10 minutes</strong>.</p>
+        <p style="color: #64748b; font-size: 12px; margin-top: 8px;">If you did not request this login code, you can safely ignore this email.</p>
       </div>
     `;
 
-    await transporter.sendMail({
+    const activeTransporter = createTransporter();
+    const result = await activeTransporter.sendMail({
       from: getFromEmail(),
       to: email,
       subject,
       html: htmlContent,
+      text: `Your SANEKT Login OTP is: ${otpCode}. It expires in 10 minutes.`,
     });
+    return result;
   } catch (error) {
-    console.error('Failed to send OTP email:', error.message);
+    console.error('⚠️ [Nodemailer] Failed to deliver OTP email to SMTP server:', error.message);
+    // Don't crash so user can still access dev OTP fallback
+    return { error: error.message, fallback: true };
   }
 };
 

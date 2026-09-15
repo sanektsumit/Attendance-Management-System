@@ -14,19 +14,22 @@ import EmployeeDirectory from './pages/admin/EmployeeDirectory';
 import AttendanceReports from './pages/admin/AttendanceReports';
 import AdminMapView from './pages/admin/AdminMapView';
 import LeaveApprovals from './pages/admin/LeaveApprovals';
+import { SidebarProvider } from './context/SidebarContext';
 import { Toaster } from 'react-hot-toast';
 
 const AppLayout = ({ children }) => {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Navbar />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
-          {children}
-        </main>
+    <SidebarProvider>
+      <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+        <Navbar />
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full transition-all duration-300">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

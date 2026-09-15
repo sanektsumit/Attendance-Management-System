@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Leave = require('../models/Leave');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
+const { createNotification } = require('../utils/notificationService');
 
 const mockLeaves = [];
 
@@ -71,6 +72,27 @@ const applyLeave = async (req, res) => {
     }
 
     mockLeaves.unshift(newLeave);
+
+    // 🔔 Send in-app notifications on BOTH sides (Employee & HR Admin)
+    try {
+      createNotification({
+        recipientRole: 'admin',
+        sender: req.user._id,
+        senderName: req.user.name,
+        type: 'leave_applied',
+        title: `📋 New Leave Request: ${req.user.name}`,
+        message: `${req.user.name} applied for ${leaveType || 'Casual'} leave (${startDate} to ${endDate}). Reason: "${reason || 'No reason specified'}"`,
+        meta: { leaveId: newLeave._id, employeeName: req.user.name, leaveType, startDate, endDate, reason },
+      });
+      createNotification({
+        recipient: req.user._id,
+        recipientRole: 'employee',
+        type: 'leave_applied',
+        title: `📋 Leave Application Submitted`,
+        message: `Your request for ${leaveType || 'Casual'} leave (${startDate} to ${endDate}) is submitted and pending HR review.`,
+        meta: { leaveId: newLeave._id, leaveType, startDate, endDate },
+      });
+    } catch (nErr) {}
 
     res.status(201).json({
       success: true,
@@ -156,6 +178,36 @@ const updateLeaveStatus = async (req, res) => {
         await Leave.findByIdAndUpdate(leaveId, { status, adminComment });
       } catch (err) {}
     }
+
+    // 🔔 Send in-app notifications on BOTH sides (Employee & HR Admin)
+    try {
+      let targetUser = null;
+      let targetLeave = leave;
+      if (!targetLeave && mongoose.connection.readyState === 1) {
+        targetLeave = await Leave.findById(leaveId);
+      }
+      const isApproved = status === 'APPROVED';
+      const employeeId = targetLeave ? (targetLeave.user?._id || targetLeave.user) : null;
+      if (employeeId) {
+        createNotification({
+          recipient: employeeId,
+          recipientRole: 'employee',
+          type: isApproved ? 'leave_approved' : 'leave_rejected',
+          title: isApproved ? '✅ Leave Request Approved!' : '❌ Leave Request Rejected',
+          message: `Your leave request has been ${status.toUpperCase()} by HR Administration.${adminComment ? ' Remarks: "' + adminComment + '"' : ''}`,
+          meta: { leaveId, status, adminComment },
+        });
+      }
+      createNotification({
+        recipientRole: 'admin',
+        sender: req.user._id,
+        senderName: req.user.name,
+        type: isApproved ? 'leave_approved' : 'leave_rejected',
+        title: `Leave Request ${status.toUpperCase()}`,
+        message: `Leave application #${leaveId} was marked as ${status} by Admin.`,
+        meta: { leaveId, status, adminComment },
+      });
+    } catch (nErr) {}
 
     res.status(200).json({
       success: true,

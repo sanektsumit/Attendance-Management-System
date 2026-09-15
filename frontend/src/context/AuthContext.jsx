@@ -43,6 +43,17 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const loginWithOtp = async (email, otp) => {
+    const res = await axiosClient.post('/auth/verify-otp', { email, otp });
+    if (res.data.success) {
+      setToken(res.data.token);
+      setUser(res.data.user);
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+    }
+    return res.data;
+  };
+
   const logout = () => {
     setToken('');
     setUser(null);
@@ -59,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!token && !!user,
         isAdmin: user?.role === 'admin',
         login,
+        loginWithOtp,
         logout,
         setUser,
       }}

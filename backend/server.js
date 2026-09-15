@@ -23,6 +23,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const officeRoutes = require('./routes/officeRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/office', officeRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Static file serving for Frontend (Single-server Deployment)
 const frontendDistPath = path.join(__dirname, '../frontend/dist');

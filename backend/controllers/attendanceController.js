@@ -6,6 +6,7 @@ const { getTodayString, calculateLateStatus, calculateWorkingHours } = require('
 const { reverseGeocode } = require('../utils/geocode');
 const { checkGeofenceCompliance } = require('../utils/geofence');
 const { sendPunchNotificationEmail } = require('../utils/mailer');
+const { createNotification } = require('../utils/notificationService');
 
 // Helper to resolve active office location for geofence check
 const getActiveOfficeLocation = async () => {
@@ -78,6 +79,32 @@ const punchIn = async (req, res) => {
         status,
       });
     } catch (e) {}
+
+    // 🔔 Send in-app notifications on BOTH sides (Employee & HR Admin)
+    try {
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Notification for Employee
+      createNotification({
+        recipient: req.user._id,
+        recipientRole: 'employee',
+        sender: null,
+        senderName: 'Attendance System',
+        type: 'attendance_in',
+        title: '🟢 Attendance Check-In Recorded',
+        message: `You marked attendance at ${timeStr} (${status}) from ${address}.`,
+        meta: { status, address, time: now, attendanceId: attendance._id },
+      });
+      // Notification for Admin
+      createNotification({
+        recipientRole: 'admin',
+        sender: req.user._id,
+        senderName: req.user.name,
+        type: 'attendance_in',
+        title: `🟢 ${req.user.name} Logged In (${status})`,
+        message: `${req.user.name} (${req.user.department || 'General'}) clocked in at ${timeStr} from ${address}.`,
+        meta: { employeeName: req.user.name, employeeId: req.user._id, status, address, time: now, attendanceId: attendance._id },
+      });
+    } catch (nErr) {}
 
     res.status(201).json({
       success: true,
@@ -159,6 +186,32 @@ const punchOut = async (req, res) => {
         status: attendance.status,
       });
     } catch (e) {}
+
+    // 🔔 Send in-app notifications on BOTH sides (Employee & HR Admin)
+    try {
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Notification for Employee
+      createNotification({
+        recipient: req.user._id,
+        recipientRole: 'employee',
+        sender: null,
+        senderName: 'Attendance System',
+        type: 'attendance_out',
+        title: '🟡 Shift Completed / Clocked Out',
+        message: `You clocked out at ${timeStr}. Total shift duration: ${totalHours} hrs.`,
+        meta: { totalHours, time: now, attendanceId: attendance._id },
+      });
+      // Notification for Admin
+      createNotification({
+        recipientRole: 'admin',
+        sender: req.user._id,
+        senderName: req.user.name,
+        type: 'attendance_out',
+        title: `🟡 ${req.user.name} Clocked Out`,
+        message: `${req.user.name} clocked out at ${timeStr}. Shift duration: ${totalHours} hrs.`,
+        meta: { employeeName: req.user.name, employeeId: req.user._id, totalHours, time: now, attendanceId: attendance._id },
+      });
+    } catch (nErr) {}
 
     res.status(200).json({
       success: true,

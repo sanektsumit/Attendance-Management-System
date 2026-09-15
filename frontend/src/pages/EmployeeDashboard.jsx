@@ -31,7 +31,12 @@ import toast from 'react-hot-toast';
 
 const format12Hour = (time24) => {
   if (!time24) return '';
-  const [h, m] = time24.split(':').map(Number);
+  if (typeof time24 === 'string' && (time24.includes('AM') || time24.includes('PM'))) return time24;
+  const parts = String(time24).split(':');
+  if (parts.length < 2) return time24;
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (isNaN(h)) return time24;
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 || 12;
   return `${hour12}:${String(m || 0).padStart(2, '0')} ${period}`;
@@ -358,7 +363,7 @@ const EmployeeDashboard = () => {
           {/* Below the employee name: Mention ONLY the employee shift timing */}
           <p className="text-sm text-slate-300 mt-1">
             Shift Timing: <span className="font-semibold text-white">
-              {user?.shiftStart || '09:00'} - {user?.shiftEnd || '18:00'} ({format12Hour(user?.shiftStart || '09:00')} - {format12Hour(user?.shiftEnd || '18:00')})
+              {format12Hour(user?.shiftStart || '09:00')} - {format12Hour(user?.shiftEnd || '18:00')}
             </span>
           </p>
         </div>

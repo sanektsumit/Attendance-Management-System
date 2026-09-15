@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendWelcomeEmail, sendOTPEmail } = require('../utils/mailer');
+const { createNotification } = require('../utils/notificationService');
 
 // Memory cache for OTP verification codes
 const otpStore = new Map();
@@ -101,6 +102,27 @@ const registerEmployee = async (req, res) => {
       console.error('Failed to send welcome email:', mailErr.message);
     }
 
+    // 🔔 Send in-app notification on BOTH sides
+    try {
+      createNotification({
+        recipientRole: 'admin',
+        sender: req.user?._id || null,
+        senderName: req.user?.name || 'HR Admin',
+        type: 'system',
+        title: `👤 Employee Account Created: ${newUser.name}`,
+        message: `${newUser.name} (${newUser.email}) was added to ${newUser.department || 'General'} as ${newUser.designation || 'Staff'}.`,
+        meta: { employeeId: newUser._id, employeeName: newUser.name, email: newUser.email },
+      });
+      createNotification({
+        recipient: newUser._id,
+        recipientRole: 'employee',
+        type: 'system',
+        title: '🎉 Welcome to SANEKT Attendance Portal',
+        message: `Your employee profile has been configured. Working shift: ${newUser.shiftStart} to ${newUser.shiftEnd}.`,
+        meta: { employeeId: newUser._id },
+      });
+    } catch (nErr) {}
+
     res.status(201).json({
       success: true,
       message: 'Employee registered successfully!',
@@ -125,59 +147,132 @@ const requestOTP = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Please provide email address' });
+      return res.status(400).json({ success: false, message: 'Please provide your employee email address' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    // Verify if this is a registered employee account
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this email' });
+      return res.status(404).json({
+        success: false,
+        message: 'No registered employee account found with this email. Please contact your HR.',
+        contactHr: true,
+      });
     }
 
-    // Generate random 6-digit OTP code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(email.toLowerCase(), { otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your employee account is deactivated. Please contact your HR.',
+        contactHr: true,
+      });
+    }
 
-    // 📧 Send OTP email via Nodemailer
-    await sendOTPEmail(email, otpCode);
+    // Generate random 6-digit numeric OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(user.email, { otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+    console.log(`🔑 [SANEKT OTP SENT] Registered Employee Email: ${user.email} | 6-Digit OTP: ${otpCode}`);
+
+    // 📧 Send OTP email via Nodemailer to their actual mail id
+    try {
+      await sendOTPEmail(user.email, otpCode);
+    } catch (mailErr) {
+      console.error('Mail delivery warning:', mailErr.message);
+    }
 
     res.status(200).json({
       success: true,
-      message: `OTP verification code sent to ${email}`,
+      message: `A 6-digit OTP verification code has been sent to your registered email (${user.email}).`,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Verify OTP code
+// @desc    Verify OTP code and authenticate user into dashboard
 // @route   POST /api/v1/auth/verify-otp
 // @access  Public
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Please provide email and OTP code' });
+      return res.status(400).json({ success: false, message: 'Please provide email and 6-digit OTP code' });
     }
 
-    const record = otpStore.get(email.toLowerCase());
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = String(otp).trim();
+
+    // Verify employee exists in system
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No registered employee account found with this email. Please contact your HR.',
+        contactHr: true,
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your employee account is deactivated. Please contact your HR.',
+        contactHr: true,
+      });
+    }
+
+    const record = otpStore.get(user.email);
     if (!record) {
-      return res.status(400).json({ success: false, message: 'No OTP requested for this email' });
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP requested for this email or it has expired. Please contact your HR.',
+        contactHr: true,
+      });
     }
 
     if (Date.now() > record.expiresAt) {
-      otpStore.delete(email.toLowerCase());
-      return res.status(400).json({ success: false, message: 'OTP code has expired. Please request a new one.' });
+      otpStore.delete(user.email);
+      return res.status(400).json({
+        success: false,
+        message: 'OTP code has expired. Please contact your HR.',
+        contactHr: true,
+      });
     }
 
-    if (record.otpCode !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP verification code' });
+    if (record.otpCode !== cleanOtp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP code. Please contact your HR.',
+        contactHr: true,
+      });
     }
 
-    otpStore.delete(email.toLowerCase());
+    // Clear OTP after successful verification
+    otpStore.delete(user.email);
+
+    const token = generateToken(user._id, user.role);
 
     res.status(200).json({
       success: true,
-      message: 'OTP verified successfully!',
+      message: 'OTP verified successfully! Entering dashboard...',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        designation: user.designation,
+        shiftStart: user.shiftStart || '09:00',
+        shiftEnd: user.shiftEnd || '18:00',
+        lateThresholdMinutes: user.lateThresholdMinutes || 15,
+        avatar: user.avatar || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        bio: user.bio || '',
+        socialLinks: user.socialLinks || {},
+        documents: user.documents || [],
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
