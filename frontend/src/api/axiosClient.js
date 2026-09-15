@@ -3,7 +3,9 @@ import axios from 'axios';
 const getBaseURL = () => {
   let url = import.meta.env.VITE_API_URL;
   if (!url || typeof url !== 'string' || url.trim() === '') {
-    return import.meta.env.PROD ? '/api/v1' : 'http://localhost:5000/api/v1';
+    return import.meta.env.PROD
+      ? 'https://sanekt-attendance-backend.onrender.com/api/v1'
+      : 'http://localhost:5000/api/v1';
   }
   url = url.trim().replace(/\/+$/, '');
   if (!url.endsWith('/api/v1')) {

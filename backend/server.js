@@ -82,8 +82,8 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Health Check Endpoint
-app.get('/api/v1/health', (req, res) => {
+// Health Check Endpoint (Both /api/v1/health and /health)
+const handleHealthCheck = (req, res) => {
   const isDbConnected = mongoose.connection.readyState === 1;
   res.status(200).json({
     status: 'UP',
@@ -95,10 +95,13 @@ app.get('/api/v1/health', (req, res) => {
     uptime: process.uptime(),
     version: '1.0.0',
   });
-});
+};
+app.get('/api/v1/health', handleHealthCheck);
+app.get('/health', handleHealthCheck);
 
-// Middleware to guard database operations when disconnected
-app.use('/api/v1', (req, res, next) => {
+// Middleware to guard database operations when disconnected (covers /api/v1 and all route aliases)
+const guardedPrefixes = ['/api/v1', '/auth', '/admin', '/attendance', '/leaves', '/office', '/notifications'];
+app.use(guardedPrefixes, (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       success: false,
@@ -108,14 +111,24 @@ app.use('/api/v1', (req, res, next) => {
   next();
 });
 
-// API Routes Mounting
+// API Routes Mounting (support both /api/v1/* and direct /* aliases)
 app.use('/api/v1/auth', authRoutes);
-app.use('/auth', authRoutes); // Fallback alias
-app.use('/api/v1/attendance', attendanceRoutes);
-app.use('/api/v1/leaves', leaveRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/v1/admin', adminRoutes);
+app.use('/admin', adminRoutes);
+
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/attendance', attendanceRoutes);
+
+app.use('/api/v1/leaves', leaveRoutes);
+app.use('/leaves', leaveRoutes);
+
 app.use('/api/v1/office', officeRoutes);
+app.use('/office', officeRoutes);
+
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Root Route (Displays API Status when frontend is hosted separately on Vercel)
 app.get('/', (req, res) => {
