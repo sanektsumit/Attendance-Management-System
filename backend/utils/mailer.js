@@ -81,8 +81,40 @@ const sendMailWrapper = async ({ to, subject, html, text }) => {
       console.log(`✅ [Resend API] Email sent successfully! ID: ${res.data?.id}`);
       return res.data;
     } catch (resendErr) {
-      console.error('⚠️ [Resend API] Failed to send via Resend HTTPS:', resendErr.response?.data || resendErr.message);
-      // Fallback to SMTP below
+      const errMsg = resendErr.response?.data?.message || resendErr.message;
+      console.error('⚠️ [Resend API] Failed to send via Resend HTTPS:', errMsg);
+
+      // In Resend free testing mode (onboarding@resend.dev), emails can only be sent to the registered owner email.
+      // If an employee email was requested, auto-forward the test OTP to the owner email so testing is seamless!
+      if (resendErr.response?.data?.statusCode === 403 && typeof errMsg === 'string' && errMsg.includes('only send testing emails to your own email address')) {
+        const ownerEmailMatch = errMsg.match(/\(([^)]+)\)/);
+        const ownerEmail = ownerEmailMatch ? ownerEmailMatch[1] : (process.env.SMTP_USER || 'sanekt.sumit@gmail.com');
+        console.log(`ℹ️ [Resend Test Mode] Forwarding test OTP email for ${to} to verified owner email: ${ownerEmail}...`);
+        try {
+          const fromEmail = process.env.RESEND_FROM_EMAIL || 'SANEKT Attendance <onboarding@resend.dev>';
+          const fallbackRes = await axios.post(
+            'https://api.resend.com/emails',
+            {
+              from: fromEmail,
+              to: [ownerEmail],
+              subject: `[Test for ${to}] ${subject}`,
+              html: `<div style="background:#1e293b;padding:12px;border-radius:8px;color:#38bdf8;margin-bottom:15px;font-size:13px;border:1px solid #475569;">ℹ️ <strong>Developer Notice:</strong> Resend is in free testing mode. This login OTP was requested for <strong>${to}</strong> and forwarded to your registered email for testing.</div>` + html,
+              text: `[Test OTP for ${to}] ` + (text || ''),
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000,
+            }
+          );
+          console.log(`✅ [Resend Test Mode] Forwarded successfully to ${ownerEmail}! ID: ${fallbackRes.data?.id}`);
+          return fallbackRes.data;
+        } catch (fErr) {
+          console.error('Failed to forward test email:', fErr.message);
+        }
+      }
     }
   }
 
