@@ -55,8 +55,36 @@ const getFromEmail = () => process.env.FROM_EMAIL || '"SANEKT Attendance Portal"
  */
 const sendMailWrapper = async ({ to, subject, html, text }) => {
   dotenv.config({ path: path.join(__dirname, '../.env') });
-  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
 
+  // 1. Google Apps Script HTTP Bridge (Sends to ANY email via Gmail account over HTTPS Port 443)
+  const scriptUrl = (process.env.GMAIL_SCRIPT_URL || '').trim();
+  if (scriptUrl) {
+    try {
+      console.log(`📨 [Google Apps Script Bridge] Sending email via HTTPS (Port 443) to: ${to}...`);
+      const res = await axios.post(
+        scriptUrl,
+        {
+          to,
+          subject,
+          html,
+          text: text || '',
+          secret: process.env.GMAIL_SCRIPT_SECRET || 'sanekt_email_secret_2026',
+        },
+        {
+          headers: { 'Content-Type': 'text/plain' }, // Avoid preflight CORS issues
+          timeout: 15000,
+          maxRedirects: 5,
+        }
+      );
+      console.log(`✅ [Google Apps Script Bridge] Dispatched to ${to}!`);
+      return res.data;
+    } catch (scriptErr) {
+      console.error('⚠️ [Google Apps Script Bridge] Error:', scriptErr.message);
+    }
+  }
+
+  // 2. Resend API
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
   if (resendApiKey) {
     try {
       console.log(`📨 [Resend API] Dispatching email via HTTPS (Port 443) to: ${to}...`);
