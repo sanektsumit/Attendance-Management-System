@@ -1,6 +1,9 @@
 const path = require('path');
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 const dotenv = require('dotenv');
+
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 let cachedTransporter = null;
 
@@ -43,9 +46,56 @@ const createTransporter = () => {
   };
 };
 
-const transporter = createTransporter();
-
 const getFromEmail = () => process.env.FROM_EMAIL || '"SANEKT Attendance Portal" <no-reply@sanekt.com>';
+
+/**
+ * Universal Email Dispatch:
+ * 1. If RESEND_API_KEY is configured in .env -> Uses Resend HTTPS API (Port 443, Render Free Tier compatible!)
+ * 2. Otherwise -> Uses Nodemailer Gmail SMTP
+ */
+const sendMailWrapper = async ({ to, subject, html, text }) => {
+  dotenv.config({ path: path.join(__dirname, '../.env') });
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+
+  if (resendApiKey) {
+    try {
+      console.log(`📨 [Resend API] Dispatching email via HTTPS (Port 443) to: ${to}...`);
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SANEKT Attendance <onboarding@resend.dev>';
+      const res = await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: fromEmail,
+          to: Array.isArray(to) ? to : [to],
+          subject,
+          html,
+          text: text || '',
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        }
+      );
+      console.log(`✅ [Resend API] Email sent successfully! ID: ${res.data?.id}`);
+      return res.data;
+    } catch (resendErr) {
+      console.error('⚠️ [Resend API] Failed to send via Resend HTTPS:', resendErr.response?.data || resendErr.message);
+      // Fallback to SMTP below
+    }
+  }
+
+  // Nodemailer SMTP fallback
+  const activeTransporter = createTransporter();
+  return await activeTransporter.sendMail({
+    from: getFromEmail(),
+    to,
+    subject,
+    html,
+    text: text || '',
+  });
+};
 
 /**
  * 1. Send Welcome Email with Account Credentials on New Employee Creation
@@ -75,8 +125,7 @@ const sendWelcomeEmail = async (employee, password) => {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: getFromEmail(),
+    await sendMailWrapper({
       to: employee.email,
       subject,
       html: htmlContent,
@@ -161,8 +210,7 @@ const sendPunchNotificationEmail = async ({
       </div>
     `;
 
-    await transporter.sendMail({
-      from: getFromEmail(),
+    await sendMailWrapper({
       to: employee.email,
       subject,
       html: htmlContent,
@@ -197,9 +245,7 @@ const sendOTPEmail = async (email, otpCode) => {
       </div>
     `;
 
-    const activeTransporter = createTransporter();
-    const result = await activeTransporter.sendMail({
-      from: getFromEmail(),
+    const result = await sendMailWrapper({
       to: email,
       subject,
       html: htmlContent,
