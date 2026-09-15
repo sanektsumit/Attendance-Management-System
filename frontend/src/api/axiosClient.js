@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL;
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return import.meta.env.PROD ? '/api/v1' : 'http://localhost:5000/api/v1';
+  }
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+};
+
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api/v1' : 'http://localhost:5000/api/v1'),
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },

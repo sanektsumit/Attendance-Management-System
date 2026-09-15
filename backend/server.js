@@ -110,6 +110,7 @@ app.use('/api/v1', (req, res, next) => {
 
 // API Routes Mounting
 app.use('/api/v1/auth', authRoutes);
+app.use('/auth', authRoutes); // Fallback alias
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/admin', adminRoutes);
