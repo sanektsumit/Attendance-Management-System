@@ -1,15 +1,34 @@
+const path = require('path');
 const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
 
 // Configure Transporter with Environment Variables or Fallback Mock Transport
 const createTransporter = () => {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+  dotenv.config({ path: path.join(__dirname, '../.env') }); // Explicitly load backend/.env
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+  const rawPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').trim();
+  // Strip any spaces from Google App Passwords (e.g. 'xslw hizm kvnh pqfu' -> 'xslwhizmkvnhpqfu')
+  const pass = rawPass.replace(/\s+/g, '');
+
+  if (user && pass) {
+    if (process.env.SMTP_HOST) {
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user,
+          pass,
+        },
+      });
+    }
+
+    // Default to Gmail service
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      service: 'gmail',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user,
+        pass,
       },
     });
   }
@@ -20,7 +39,7 @@ const createTransporter = () => {
       console.log('\n================ 📧 MOCK EMAIL NOTIFICATION SENT ================');
       console.log(`📩 TO:      ${mailOptions.to}`);
       console.log(`📌 SUBJECT: ${mailOptions.subject}`);
-      console.log('📄 BODY:\n', mailOptions.text || mailOptions.html.replace(/<[^>]*>?/gm, ''));
+      console.log('📄 BODY:\n', mailOptions.text || (mailOptions.html ? mailOptions.html.replace(/<[^>]*>?/gm, '') : ''));
       console.log('=================================================================\n');
       return { messageId: `mock_email_${Date.now()}` };
     },
@@ -181,16 +200,19 @@ const sendOTPEmail = async (email, otpCode) => {
       </div>
     `;
 
-    return await transporter.sendMail({
+    const activeTransporter = createTransporter();
+    const result = await activeTransporter.sendMail({
       from: getFromEmail(),
       to: email,
       subject,
       html: htmlContent,
       text: `Your SANEKT Login OTP is: ${otpCode}. It expires in 10 minutes.`,
     });
+    return result;
   } catch (error) {
-    console.error('Failed to send OTP email via Nodemailer:', error.message);
-    throw error;
+    console.error('⚠️ [Nodemailer] Failed to deliver OTP email to SMTP server:', error.message);
+    // Don't crash so user can still access dev OTP fallback
+    return { error: error.message, fallback: true };
   }
 };
 

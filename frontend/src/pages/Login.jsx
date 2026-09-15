@@ -13,6 +13,8 @@ import {
   CheckCircle,
   Eye,
   EyeOff,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,6 +34,10 @@ const Login = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // HR Contact Popup Modal state
+  const [showHrModal, setShowHrModal] = useState(false);
+  const [hrModalMessage, setHrModalMessage] = useState('');
 
   const { login, loginWithOtp } = useAuth();
   const navigate = useNavigate();
@@ -74,30 +80,35 @@ const Login = () => {
   const handleOtpAction = async (e) => {
     e.preventDefault();
     if (!otpEmail) {
-      toast.error('Please enter your email address');
+      toast.error('Please enter your employee email address');
       return;
     }
 
-    // Step 1: If OTP not sent yet -> Send OTP
+    // Step 1: If OTP not sent yet -> Verify employee & Send OTP
     if (!otpSent) {
       setOtpLoading(true);
       try {
         const res = await axiosClient.post('/auth/send-otp', { email: otpEmail.trim() });
         if (res.data.success) {
-          toast.success(res.data.message || '6-digit OTP sent to your email!');
+          toast.success(res.data.message || '6-digit OTP sent to your registered email! Please check your inbox.');
+          setOtp(''); // Must manually type the OTP
           setOtpSent(true);
           setCountdown(60);
         }
       } catch (error) {
-        const msg = error.response?.data?.message || 'Failed to send OTP. Please check email.';
+        const msg = error.response?.data?.message || 'Failed to send OTP. Please check your email.';
         toast.error(msg);
+        if (error.response?.data?.contactHr || error.response?.status === 404 || error.response?.status === 401) {
+          setHrModalMessage(msg);
+          setShowHrModal(true);
+        }
       } finally {
         setOtpLoading(false);
       }
       return;
     }
 
-    // Step 2: If OTP already sent -> Submit OTP and Login
+    // Step 2: If OTP already sent -> Submit manually typed OTP and verify
     if (!otp || otp.trim().length !== 6) {
       toast.error('Please enter the complete 6-digit OTP');
       return;
@@ -113,8 +124,12 @@ const Login = () => {
         navigate('/dashboard');
       }
     } catch (error) {
-      const msg = error.response?.data?.message || 'Invalid or expired OTP code';
+      const msg = error.response?.data?.message || 'OTP does not match. Please contact your HR.';
       toast.error(msg);
+      // Popup message: "contact your Hr"
+      setHrModalMessage(msg);
+      setShowHrModal(true);
+      setOtp(''); // Clear OTP so user can re-type manually
     } finally {
       setOtpLoading(false);
     }
@@ -127,12 +142,17 @@ const Login = () => {
     try {
       const res = await axiosClient.post('/auth/send-otp', { email: otpEmail.trim() });
       if (res.data.success) {
-        toast.success('New 6-digit OTP sent to your email!');
+        toast.success('New 6-digit OTP sent to your registered email! Please check your inbox.');
+        setOtp(''); // User must manually type new OTP
         setCountdown(60);
       }
     } catch (error) {
       const msg = error.response?.data?.message || 'Failed to resend OTP';
       toast.error(msg);
+      if (error.response?.data?.contactHr) {
+        setHrModalMessage(msg);
+        setShowHrModal(true);
+      }
     } finally {
       setOtpLoading(false);
     }
@@ -142,49 +162,51 @@ const Login = () => {
     <div className="relative flex min-h-screen items-center justify-center bg-slate-950 p-4 overflow-hidden">
       {/* Dynamic Background Glow Orbs */}
       <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-emerald-600/20 blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none"></div>
 
-      {/* Main Login Card - Constant dimensions */}
-      <div className="relative w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl">
-        {/* Header with Logo */}
-        <div className="text-center mb-6">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-950/90 border border-slate-800 p-2 shadow-xl shadow-indigo-500/20 mb-3 hover:scale-105 transition-transform">
-            <img
-              src="/image.png"
-              alt="SANEKT Logo"
-              className="h-full w-full object-contain rounded-xl"
-            />
+      {/* Main Login Card - Static Dimensions (Never shifts position) */}
+      <div className="relative w-full max-w-md h-[525px] rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+        <div>
+          {/* Header with Logo */}
+          <div className="text-center mb-6">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-950/90 border border-slate-800 p-2 shadow-xl shadow-indigo-500/20 mb-3 hover:scale-105 transition-transform">
+              <img
+                src="/image.png"
+                alt="SANEKT Logo"
+                className="h-full w-full object-contain rounded-xl"
+              />
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white">SANEKT Attendance</h1>
+            <p className="text-xs text-slate-400 mt-1">Sign in to access your workplace portal</p>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">SANEKT Attendance</h1>
-          <p className="text-xs text-slate-400 mt-1">Sign in to access your workplace portal</p>
-        </div>
 
-        {/* Tab Switcher: Password Login vs Login with OTP */}
-        <div className="flex rounded-xl bg-slate-950/80 p-1 border border-slate-800 mb-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab('password')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition ${
-              activeTab === 'password'
-                ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Lock className="h-3.5 w-3.5" />
-            <span>Password Login</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('otp')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition ${
-              activeTab === 'otp'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            <span>Login with OTP</span>
-          </button>
+          {/* Tab Switcher: Password Login vs Login with OTP (Exact same theme) */}
+          <div className="flex rounded-xl bg-slate-950/80 p-1 border border-slate-800 mb-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('password')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition ${
+                activeTab === 'password'
+                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>Password Login</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('otp')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition ${
+                activeTab === 'otp'
+                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              <span>Login with OTP</span>
+            </button>
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -249,14 +271,14 @@ const Login = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: LOGIN WITH OTP (Email -> Send OTP -> Enter OTP -> Submit)          */}
+        {/* TAB 2: LOGIN WITH OTP (Exact Same Size & Color Theme)                     */}
         {/* ========================================================================= */}
         {activeTab === 'otp' && (
           <form onSubmit={handleOtpAction} className="space-y-4 animate-in fade-in duration-200">
             {/* Field 1: Email Address */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-400 uppercase">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase">Employee Email Address</label>
                 {otpSent && (
                   <button
                     type="button"
@@ -264,7 +286,7 @@ const Login = () => {
                       setOtpSent(false);
                       setOtp('');
                     }}
-                    className="text-[11px] text-indigo-400 hover:underline"
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline"
                   >
                     Change Email
                   </button>
@@ -276,60 +298,63 @@ const Login = () => {
                   type="email"
                   value={otpEmail}
                   onChange={(e) => setOtpEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  placeholder="employee@company.com"
                   readOnly={otpSent}
-                  className={`w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                    otpSent ? 'opacity-80 cursor-default border-emerald-500/30' : ''
+                  className={`w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                    otpSent ? 'opacity-80 cursor-default' : ''
                   }`}
                   required
                 />
               </div>
             </div>
 
-            {/* Field 2: Extra field shown ONLY when OTP is sent */}
-            {otpSent && (
-              <div className="animate-in fade-in duration-200 space-y-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-emerald-400 uppercase">Enter Your OTP</label>
-                  {countdown > 0 ? (
-                    <span className="text-[11px] text-slate-400 font-mono">Resend in {countdown}s</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      disabled={otpLoading}
-                      className="text-[11px] text-indigo-400 hover:text-indigo-300 inline-flex items-center gap-1"
-                    >
-                      <RefreshCw className="h-3 w-3" /> Resend OTP
-                    </button>
-                  )}
+            {/* Field 2 Slot: Exactly 68px height so card size never shifts */}
+            <div className="h-[68px] flex flex-col justify-center">
+              {otpSent ? (
+                <div className="animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-400 uppercase">Enter Your 6-Digit OTP</label>
+                    {countdown > 0 ? (
+                      <span className="text-[11px] text-slate-400 font-mono">Resend in {countdown}s</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendOtp}
+                        disabled={otpLoading}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 inline-flex items-center gap-1 transition"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Resend OTP
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Enter 6-digit OTP"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 pl-10 pr-4 text-base font-mono tracking-widest text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4 w-4 text-emerald-400" />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit OTP"
-                    className="w-full rounded-xl border border-emerald-500/40 bg-slate-950/90 py-2.5 pl-10 pr-4 text-base font-mono tracking-widest text-emerald-400 placeholder-slate-600 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                    required
-                    autoFocus
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500 pt-0.5">
-                  6-digit code sent via Nodemailer. Valid for 10 minutes.
+              ) : (
+                <p className="text-xs text-slate-500 text-center py-2">
+                  A 6-digit verification code will be sent to your registered email.
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Action Button: 'Send OTP' initially, changes to 'Submit' after sending */}
             <button
               type="submit"
               disabled={otpLoading || (otpSent && otp.length !== 6)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 transition disabled:opacity-50 mt-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-indigo-600 transition disabled:opacity-50 mt-2"
             >
               {otpLoading ? (
                 <>
@@ -338,7 +363,6 @@ const Login = () => {
                 </>
               ) : otpSent ? (
                 <>
-                  <CheckCircle className="h-4 w-4" />
                   <span>Submit</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
@@ -352,6 +376,73 @@ const Login = () => {
           </form>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* POPUP MODAL: CONTACT YOUR HR (Appears on OTP mismatch or unlisted employee) */}
+      {/* ========================================================================= */}
+      {showHrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 p-6 shadow-2xl text-center space-y-5">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowHrModal(false)}
+              className="absolute right-4 top-4 rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Alert Icon Badge */}
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 shadow-lg shadow-red-500/20">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+
+            {/* Title & Pop-up Message */}
+            <div className="space-y-2">
+              <h3 className="text-xl font-extrabold text-white tracking-tight">Contact Your HR</h3>
+              <p className="text-sm text-slate-300 leading-relaxed px-2">
+                {hrModalMessage || 'The OTP does not match our records or has expired. Please contact your HR administrator for assistance.'}
+              </p>
+            </div>
+
+            {/* HR Help Desk Details Box */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 text-left space-y-2.5 text-xs">
+              <div className="flex items-center justify-between text-slate-400">
+                <span>HR Administration:</span>
+                <span className="font-semibold text-white">SANEKT HR Department</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-400">
+                <span>Official HR Email:</span>
+                <span className="font-mono font-semibold text-indigo-400">sanekt.sumit@gmail.com</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-400">
+                <span>Support Status:</span>
+                <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Active HR Support
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href="mailto:sanekt.sumit@gmail.com?subject=SANEKT%20Attendance%20Login%20Support%20-%20OTP%20Verification%20Help"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-indigo-600 transition"
+              >
+                <Mail className="h-4 w-4" />
+                <span>Email HR Support</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowHrModal(false)}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
